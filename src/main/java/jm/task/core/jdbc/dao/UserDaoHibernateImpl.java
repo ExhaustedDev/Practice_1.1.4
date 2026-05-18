@@ -8,14 +8,14 @@ import org.hibernate.Transaction;
 import java.util.List;
 
 public class UserDaoHibernateImpl implements UserDao {
-    public UserDaoHibernateImpl() {
+    private final SessionFactory sessionFactory;
 
+    public UserDaoHibernateImpl() {
+        sessionFactory = Util.getSessionFactory();
     }
 
     @Override
     public void createUsersTable() {
-        SessionFactory sessionFactory = Util.getSessionFactory();
-
         String sql = """
                 CREATE TABLE IF NOT EXISTS users (
                     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -37,8 +37,6 @@ public class UserDaoHibernateImpl implements UserDao {
 
     @Override
     public void dropUsersTable() {
-        SessionFactory sessionFactory = Util.getSessionFactory();
-
         String sql = "DROP TABLE IF EXISTS users";
 
         try (Session currentSession = sessionFactory.openSession()) {
@@ -53,18 +51,15 @@ public class UserDaoHibernateImpl implements UserDao {
 
     @Override
     public void saveUser(String name, String lastName, byte age) {
-        SessionFactory sessionFactory = Util.getSessionFactory();
-
-        String sql = "INSERT INTO users (name, lastName, age) VALUES (?, ?, ?)";
-
         try (Session currentSession = sessionFactory.openSession()) {
             Transaction transaction = currentSession.beginTransaction();
 
-            currentSession.createNativeQuery(sql)
-                    .setParameter(1, name)
-                    .setParameter(2, lastName)
-                    .setParameter(3, age)
-                    .executeUpdate();
+            User user = new User();
+            user.setName(name);
+            user.setLastName(lastName);
+            user.setAge(age);
+
+            currentSession.persist(user);
 
             transaction.commit();
         }
@@ -72,16 +67,14 @@ public class UserDaoHibernateImpl implements UserDao {
 
     @Override
     public void removeUserById(long id) {
-        SessionFactory sessionFactory = Util.getSessionFactory();
-
-        String sql = "DELETE FROM users WHERE id = ?";
-
         try (Session currentSession = sessionFactory.openSession()) {
             Transaction transaction = currentSession.beginTransaction();
 
-            currentSession.createNativeQuery(sql)
-                    .setParameter(1, id)
-                    .executeUpdate();
+            User user = currentSession.get(User.class, id);
+
+            if (user != null) {
+                currentSession.remove(user);
+            }
 
             transaction.commit();
         }
@@ -89,19 +82,11 @@ public class UserDaoHibernateImpl implements UserDao {
 
     @Override
     public List<User> getAllUsers() {
-        SessionFactory sessionFactory = Util.getSessionFactory();
-
         List<User> users;
 
-        String sql = "SELECT * FROM users";
-
         try (Session currentSession = sessionFactory.openSession()) {
-            Transaction transaction = currentSession.beginTransaction();
-
-            users = currentSession.createNativeQuery(sql, User.class)
+            users = currentSession.createQuery("select u from User u", User.class)
                     .getResultList();
-
-            transaction.commit();
         }
 
         return users;
@@ -109,14 +94,10 @@ public class UserDaoHibernateImpl implements UserDao {
 
     @Override
     public void cleanUsersTable() {
-        SessionFactory sessionFactory = Util.getSessionFactory();
-
-        String sql = "DELETE FROM users";
-
         try (Session currentSession = sessionFactory.openSession()) {
             Transaction transaction = currentSession.beginTransaction();
 
-            currentSession.createNativeQuery(sql)
+            currentSession.createQuery("delete from User")
                     .executeUpdate();
 
             transaction.commit();
